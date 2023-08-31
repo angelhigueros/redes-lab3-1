@@ -6,70 +6,74 @@ class Flooding {
             input: process.stdin,
             output: process.stdout
         });
-        this.pedir();
+        this.setup();
     }
 
-    pedir() {
+    setup() {
         this.rl.question("Ingresa el nombre del nodo> ", (me) => {
             this.me = me;
             this.rl.question("Ingresa los vecinos separados por coma> ", (misVecinos) => {
                 this.vecinos = misVecinos.split(",");
-                this.rl.close();
+                this.mainLoop();
             });
         });
     }
 
-    send_message(message, destino) {
-        console.log(`Enviando mensaje a mis vecinos: ${this.vecinos}`);
-        console.log(`Destinatario del mensaje: ${destino}`);
-        console.log(`Tabla de visitados: [${this.me}]`);
-        console.log(`Mensaje: ${message}`);
+    send_message() {
+        this.rl.question("Ingrese el mensaje> ", (mensaje) => {
+            this.rl.question("Ingrese el destino> ", (destino) => {
+                console.log(`Enviando mensaje a mis vecinos: ${this.vecinos}`);
+                console.log(`Destinatario del mensaje: ${destino}`);
+                console.log(`Tabla de visitados: [${this.me}]`);
+                console.log(`Mensaje: ${mensaje}`);
+                this.mainLoop();
+            });
+        });
     }
 
-    receive_message(message, emisor, tabla_visitados) {
-        if (tabla_visitados.includes(this.me)) {
-            console.log(`Mensaje recibido de: ${emisor}, el mensaje es: ${message}`);
-        } else {
-            console.log("Enviando mensaje a mis vecinos: " + this.vecinos);
-            console.log(`Destinatario del mensaje: ${destino}, emisor: ${emisor}`);
-            console.log(`Tabla de visitados: [${tabla_visitados}, ${this.me}]`);
-        }
+    receive_message() {
+        this.rl.question("Ingrese el mensaje de la forma 'destino,mensaje,emisor'> ", (recibido) => {
+            const tupla = recibido.split(",");
+            const destino = tupla[0];
+            const mensaje = tupla[1];
+            const emisor = tupla[2];
+            this.rl.question("Ingrese la tabla de visitados de la forma 'nodo1,nodo2,nodo3'> ", (tabla_visitados) => {
+                const visitados = tabla_visitados.split(",");
+                if (visitados.includes(this.me)) {
+                    console.log(`Mensaje recibido de: ${emisor}, el mensaje es: ${mensaje}`);
+                } else {
+                    console.log("Enviando mensaje a mis vecinos: " + this.vecinos);
+                    console.log(`Destinatario del mensaje: ${destino}, emisor: ${emisor}`);
+                    console.log(`Tabla de visitados: [${visitados}, ${this.me}]`);
+                }
+                this.mainLoop();
+            });
+        });
+    }
+
+    mainLoop() {
+        console.log("\n\n1. Enviar mensaje");
+        console.log("2. Recibir mensaje");
+        console.log("3. Salir");
+        this.rl.question("Ingrese opción> ", (opcion) => {
+            switch (opcion) {
+                case "1":
+                    this.send_message();
+                    break;
+                case "2":
+                    this.receive_message();
+                    break;
+                case "3":
+                    console.log("Finalizando programa.");
+                    this.rl.close();
+                    break;
+                default:
+                    console.log("Opción no válida.");
+                    this.mainLoop();
+                    break;
+            }
+        });
     }
 }
 
 const flooding = new Flooding();
-
-let opcion = "0";
-const mainLoop = () => {
-    console.log("\n\n1. Enviar mensaje");
-    console.log("2. Recibir mensaje");
-    console.log("3. Salir");
-    flooding.rl.question("Ingrese opción> ", (opcion) => {
-        if (opcion === "1") {
-            flooding.rl.question("Ingrese el mensaje> ", (mensaje) => {
-                flooding.rl.question("Ingrese el destino> ", (destino) => {
-                    flooding.send_message(mensaje, destino);
-                    mainLoop();
-                });
-            });
-        } else if (opcion === "2") {
-            flooding.rl.question("Ingrese el mensaje de la forma 'destino,mensaje,emisor'> ", (recibido) => {
-                const tupla = recibido.split(",");
-                const destino = tupla[0];
-                const mensaje = tupla[1];
-                const emisor = tupla[2];
-                flooding.rl.question("Ingrese la tabla de visitados de la forma 'nodo1,nodo2,nodo3'> ", (tabla_visitados) => {
-                    flooding.receive_message(mensaje, emisor, tabla_visitados);
-                    mainLoop();
-                });
-            });
-        } else if (opcion === "3") {
-            flooding.rl.close();
-        } else {
-            console.log("Opción no válida.");
-            mainLoop();
-        }
-    });
-};
-
-mainLoop();
