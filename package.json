@@ -4,9 +4,13 @@
   "description": "",
   "main": "dijkstra.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dijkstra": "node ./dijkstra.js",
+    "floading": "node ./floading.js"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "author": "Mariana David, Fredy Velasquez, Angel Higueros",
+  "license": "ISC",
+  "dependencies": {
+    "readline": "^1.3.0"
+  }
 }
