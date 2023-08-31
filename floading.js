@@ -1,12 +1,22 @@
+const readline = require('readline');
+
 class Flooding {
     constructor() {
+        this.rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
         this.pedir();
     }
 
     pedir() {
-        this.me = prompt("Ingresa el nombre del nodo");
-        const misVecinos = prompt("Ingresa los vecinos separados por coma");
-        this.vecinos = misVecinos.split(",");
+        this.rl.question("Ingresa el nombre del nodo> ", (me) => {
+            this.me = me;
+            this.rl.question("Ingresa los vecinos separados por coma> ", (misVecinos) => {
+                this.vecinos = misVecinos.split(",");
+                this.rl.close();
+            });
+        });
     }
 
     send_message(message, destino) {
@@ -30,22 +40,36 @@ class Flooding {
 const flooding = new Flooding();
 
 let opcion = "0";
-while (opcion !== "3") {
+const mainLoop = () => {
     console.log("\n\n1. Enviar mensaje");
     console.log("2. Recibir mensaje");
     console.log("3. Salir");
-    opcion = prompt("Ingrese opción");
-    if (opcion === "1") {
-        const mensaje = prompt("Ingrese el mensaje");
-        const destino = prompt("Ingrese el destino");
-        flooding.send_message(mensaje, destino);
-    } else if (opcion === "2") {
-        const recibido = prompt("Ingrese el mensaje de la forma 'destino,mensaje,emisor'");
-        const tupla = recibido.split(",");
-        const destino = tupla[0];
-        const mensaje = tupla[1];
-        const emisor = tupla[2];
-        const tabla_visitados = prompt("Ingrese la tabla de visitados de la forma 'nodo1,nodo2,nodo3'");
-        flooding.receive_message(mensaje, emisor, tabla_visitados);
-    }
-}
+    flooding.rl.question("Ingrese opción> ", (opcion) => {
+        if (opcion === "1") {
+            flooding.rl.question("Ingrese el mensaje> ", (mensaje) => {
+                flooding.rl.question("Ingrese el destino> ", (destino) => {
+                    flooding.send_message(mensaje, destino);
+                    mainLoop();
+                });
+            });
+        } else if (opcion === "2") {
+            flooding.rl.question("Ingrese el mensaje de la forma 'destino,mensaje,emisor'> ", (recibido) => {
+                const tupla = recibido.split(",");
+                const destino = tupla[0];
+                const mensaje = tupla[1];
+                const emisor = tupla[2];
+                flooding.rl.question("Ingrese la tabla de visitados de la forma 'nodo1,nodo2,nodo3'> ", (tabla_visitados) => {
+                    flooding.receive_message(mensaje, emisor, tabla_visitados);
+                    mainLoop();
+                });
+            });
+        } else if (opcion === "3") {
+            flooding.rl.close();
+        } else {
+            console.log("Opción no válida.");
+            mainLoop();
+        }
+    });
+};
+
+mainLoop();
