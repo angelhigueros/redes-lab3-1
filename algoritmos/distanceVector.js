@@ -48,7 +48,6 @@ const A = new Router('A');
 const B = new Router('B');
 const C = new Router('C');
 const D = new Router('D');
-
 A.addConnection(B, 1);
 A.addConnection(C, 4);
 B.addConnection(C, 2);
