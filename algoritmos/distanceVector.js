@@ -1,70 +1,66 @@
-class Router {
-    constructor(name) {
-        this.name = name;
-        this.routingTable = {};
-        this.connections = {};
+class DistanceVectorRouting {
+    constructor(graph) {
+      this.graph = graph;
+      this.nodes = Object.keys(graph);
+      this.table = {};
+  
+      this.nodes.forEach(node => {
+        this.table[node] = {};
+        this.nodes.forEach(target => {
+          if (node === target) {
+            this.table[node][target] = 0;
+          } else {
+            this.table[node][target] = Infinity;
+          }
+        });
+      });
+  
+      this.nodes.forEach(node => {
+        for (let target in this.graph[node]) {
+          this.table[node][target] = this.graph[node][target];
+        }
+      });
     }
-
-    addConnection(router, cost) {
-        this.connections[router.name] = cost;
-        router.connections[this.name] = cost;
-        this.routingTable[router.name] = { distance: cost, nextHop: router.name };
-        router.routingTable[this.name] = { distance: cost, nextHop: this.name };
-    }
-
-    receiveVector(vector, neighborName) {
-        let changed = false;
-        for (let dest in vector) {
-            if (!this.routingTable[dest] || this.routingTable[dest].distance > vector[dest].distance + this.connections[neighborName]) {
-                this.routingTable[dest] = {
-                    distance: vector[dest].distance + this.connections[neighborName],
-                    nextHop: neighborName
-                };
-                changed = true;
+  
+    update() {
+      let change = false;
+  
+      this.nodes.forEach(node => {
+        this.nodes.forEach(neighbour => {
+          this.nodes.forEach(target => {
+            if (
+              this.table[node][target] >
+              this.table[node][neighbour] + this.table[neighbour][target]
+            ) {
+              this.table[node][target] =
+                this.table[node][neighbour] + this.table[neighbour][target];
+              change = true;
             }
-        }
-        return changed;
+          });
+        });
+      });
+  
+      return change;
     }
-
-    sendVector() {
-        for (let neighborName in this.connections) {
-            if (routers[neighborName].receiveVector(this.routingTable, this.name)) {
-                return true;
-            }
-        }
-        return false;
+  
+    findShortestPaths() {
+      while (this.update()) {}
     }
-
-    toString() {
-        let result = [];
-        for (let dest in this.routingTable) {
-            result.push(`Destino: ${dest}, Distancia: ${this.routingTable[dest].distance}, Siguiente salto: ${this.routingTable[dest].nextHop}`);
-        }
-        return result.join('\n');
+  
+    printTable() {
+      console.log(this.table);
     }
-}
-
-const A = new Router('A');
-const B = new Router('B');
-const C = new Router('C');
-const D = new Router('D');
-A.addConnection(B, 1);
-A.addConnection(C, 4);
-B.addConnection(C, 2);
-C.addConnection(D, 1);
-
-const routers = { A, B, C, D };
-
-let changed;
-do {
-    changed = false;
-    for (let routerName in routers) {
-        if (routers[routerName].sendVector()) {
-            changed = true;
-        }
-    }
-} while (changed);
-
-for (let routerName in routers) {
-    console.log(`Router ${routerName}:\n${routers[routerName].toString()}\n`);
-}
+  }
+  
+  // Ejemplo de uso
+  const graph = {
+    A: { B: 1, C: 4 },
+    B: { C: 2, D: 5 },
+    C: { D: 3 },
+    D: {}
+  };
+  
+  const dvr = new DistanceVectorRouting(graph);
+  dvr.findShortestPaths();
+  dvr.printTable();
+  

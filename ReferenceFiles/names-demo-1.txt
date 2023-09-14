@@ -1,1 +1,1 @@
-{"type":"names", "config":{'A': 'tt1@alumchat.xyz', 'B': 'tt2@alumchat.xyz', 'C': 'tt3@alumchat.xyz', 'D': 'tt4@alumchat.xyz', 'E': 'tt5@alumchat.xyz', 'F': 'ttt6@alumchat.xyz', 'G': 'tt7@alumchat.xyz'} }
+{"type":"names", "config":{'A': 'tt1@alumchat.xyz', 'B': 'tt2@alumchat.xyz', 'C': 'tt3@alumchat.xyz', 'D': 'tt4@alumchat.xyz', 'E': 'tt5@alumchat.xyz', 'F': 'ttt6@alumchat.xyz', 'G': 'tt7@alumchat.xyz', 'H': 'mary@alumchat.xyz'} }

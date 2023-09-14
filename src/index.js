@@ -14,12 +14,18 @@ class Chat {
 
     this.contacts = {}
     this.groupRoster = {}
-    this.registerState = {successfulRegistration: false } 
+    this.registerState = { successfulRegistration: false } 
     this.base64Data = ''
 
     this.namesConfigFile = "./ReferenceFiles/names-demo-1.txt"
     this.topoConfigFile = "./ReferenceFiles/topo-demo-1.txt"
     this.server = "alumchat.xyz"
+    this.history = []
+
+
+    // flooding, distanceVector or lsr
+    this.method = 'flooding'
+
 
     // Iconos para los shows de los Usuarios
     this.showIcon = {
@@ -35,6 +41,8 @@ class Chat {
       output: process.stdout
     })
 
+    this.xml = null
+
   }
 
 
@@ -46,6 +54,19 @@ class Chat {
       }
     }
     return null;
+  }
+
+  
+  generateRandomNumber(text) {
+    let time = new Date().getTime();
+    let seed = text + time;
+    
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      hash = Math.imul(31, hash) + seed.charCodeAt(i) | 0;
+    }
+    let rnd = Math.sin(hash) * 10000;
+    return rnd - Math.floor(rnd);
   }
 
 
@@ -92,7 +113,8 @@ class Chat {
             this.graph = new WeightedDirectedGraph()
     
     
-            let clientKey = this.findKeyByValue(names, jid);
+            this.clientKey = this.findKeyByValue(names, jid);
+            this.clientJID = jid;
 
             // Crear arbol
             for (let key in topo) {
@@ -108,10 +130,9 @@ class Chat {
                   const weight = Math.floor(Math.random() * 10) + 1
     
                   this.graph.addEdge(node1, node2, weight)
-                  
 
                   // console.log("vamoo", {clientKey, node1})
-                  if ( clientKey == node1) {
+                  if ( this.clientKey == node1) {
                     this.table[node2] = { jid: names[node2], weight }
                   }
                 }
@@ -122,8 +143,11 @@ class Chat {
             if(JSON.stringify(this.table) === "{}") {
               console.log("[!] Su usuario debe estar incluido en la topologia indicada")
             }
+            
           }
         })
+
+    
 
   }
 
@@ -141,7 +165,7 @@ class Chat {
   }
 
 // Funcion para cambiar el estado y show del usuario
-  cambiarEstadoUsuario = (xmpp, show, status) => {
+  cambiarEstadoUsuario = (show, status) => {
     try {
       const presenceStanza = xml(
         'presence',
@@ -150,7 +174,7 @@ class Chat {
         xml('status', {}, status) // mensaje opcional, por ejemplo, "En una reunión"
       )
 
-      xmpp.send(presenceStanza)
+      this.xmpp.send(presenceStanza)
       console.log(`💭 Estado cambiado a ${show} con status ${status}`)
     } catch (error) {
       console.error(`❌ Error al cambiar el estado y show del usuario: ${error.message}`)
@@ -158,9 +182,9 @@ class Chat {
   }
 
   // Funcion para obtener el roster del usuario
-  getRoster = (xmpp,jid) => {
+  getRoster = (jid) => {
     const rosterQuery = xml('iq', { type: 'get', to:`${jid}@${this.server}`}, xml('query', { xmlns: 'jabber:iq:roster' }))
-    xmpp.send(rosterQuery)
+    this.xmpp.send(rosterQuery)
   }
 
   // Funcion para limpiar el roster al cerrar sesion
@@ -183,8 +207,8 @@ class Chat {
       console.log('Contactos:') 
       console.log('\tJID    \t Show    \t Estado')
       for (const contact in this.contacts) {
-        const isGroup = this.contact.includes(`@conference.${this.server}`)
-        const contactJid = this.contact.split('@')[0]
+        const isGroup = contact.includes(`@conference.${this.server}`)
+        const contactJid = contact.split('@')[0]
 
         if (isGroup) {
           // Obtener el rouster del group y mostrarlo
@@ -217,18 +241,17 @@ class Chat {
   }
 
 
-
   // Funcion para leer el archivo y enviarlo
-  leerArchivo = async (xmpp,path,toJid) => {
+  leerArchivo = async (path,toJid) => {
     try{
-    
       const extension = path.split('.').pop()
       
       const fileData = await fs.readFileSync(path)
       const encodedFileData = Buffer.from(fileData).toString('base64')
       const message = `file://${extension}://${encodedFileData}` // se crea el mensaje
       
-      this.sendMessages(xmpp, toJid, message)
+      this.sendMessages(toJid, message)
+ 
       return
     }
     catch(err){
@@ -279,11 +302,11 @@ class Chat {
   // Funcion para registrar una nueva cuenta
   async register(username, password) {
     
-    this.crearTablaEnrutamiento(`${username}@${server}`)
+    this.crearTablaEnrutamiento(`${username}@${this.server}`)
 
     // Se usa un socket de net para registrar la cuenta
     const client = new net.Socket()
-    client.connect(5222, server, function() {
+    client.connect(5222, this.server, function() {
       console.log('Connected')
       client.write('<stream:stream to="' + this.server + '" xmlns="jabber:client" xmlns:stream="http://etherx.jabber.org/streams" version="1.0">')
     })
@@ -297,6 +320,7 @@ class Chat {
         // El registro fue exitoso, procede con el inicio de sesión
         this.registerState.successfulRegistration = true
         client.destroy()
+
       } else if (data.toString().includes('<error code"409" type="cancel"><conflict xmlns="urn:ietf:params:xml:ns:xmpp-stanzas"/>')) {
         // El usuario ya existe
         console.log('❌ El usuario ya existe, por favor elige un nombre de usuario diferente.')
@@ -322,9 +346,9 @@ class Chat {
   crearRoom = async (xmpp, roomName) => {
     try {
       // Crear sala de chat
-      const groupJid = `${roomName}@conference.${this.server}/${xmpp.jid.local}`
+      const groupJid = `${roomName}@conference.${this.server}/${this.xmpp.jid.local}`
       const groupStanza = xml('presence', { to: groupJid }, xml('x', { xmlns: 'http://jabber.org/protocol/muc' }))
-      xmpp.send(groupStanza)
+      this.xmpp.send(groupStanza)
 
       // Configurar sala de chat como abierta
       const configRequest = xml('iq', { to: groupJid, type: 'set' }, 
@@ -337,7 +361,7 @@ class Chat {
         )
       )
 
-      xmpp.send(configRequest)
+      this.xmpp.send(configRequest)
       console.log("👯 Sala de chat creada exitosamente y configurada como abierta")
     } catch (error) {
       console.log(`❌ Error al crear la sala de chat: ${error.message}`)
@@ -347,9 +371,9 @@ class Chat {
   // Funcion para unirse a una sala de chat
   unirseRoom = async (xmpp, roomName) => {
     try {
-      const groupJid = `${roomName}@conference.${this.server}/${xmpp.jid.local}`
+      const groupJid = `${roomName}@conference.${this.server}/${this.xmpp.jid.local}`
       const groupStanza = xml('presence', { to: groupJid }, xml('x', { xmlns: 'http://jabber.org/protocol/muc' }))
-      xmpp.send(groupStanza)
+      this.xmpp.send(groupStanza)
       console.log(`👯 Intentando unirse al grupo público ${roomName}`)
     } catch (error) {
       console.log(`❌ Error al unirse a la sala de chat: ${error.message}`)
@@ -357,28 +381,84 @@ class Chat {
   }
 
   // Funcion para agregar un contacto con una stanza de presence
-  addContact = async (xmpp, contactJid) => {
+  addContact = async (contactJid) => {
     try {
-      const presenceStanza =  xml('presence', { to: `${contactJid}@${this.server}`, type: 'subscribe' })
-      await xmpp.send(presenceStanza)
-      console.log('📨 Solicitud de contacto enviada a', contactJid)
+      let jid = `${contactJid}@${this.server}`
+      const presenceStanza =  xml('presence', { to: jid, type: 'subscribe' })
+      await this.xmpp.send(presenceStanza)
+      console.log('📨 Solicitud de contacto enviada a', jid)
     } catch (error) {
       console.log('❌ Error al agregar contacto', error)
     }
-  }
+  } 
 
   // Funcion para enviar mensajes
-  sendMessages = async (xmpp, contactJid, message) => {
-    try {
-      const messageStanza = xml(
-        'message',
-        { type: 'chat', to: contactJid + '@' + this.server },
-        xml('body', {}, message),
-      )
-      xmpp.send(messageStanza)
-    } catch (error) {
-      console.log('❌ Error al enviar mensaje', error)
+  sendMessages = async (from = '', contactJid, message, id) => {
+    let idRandom = id
+
+    if (from == '') {
+      idRandom = this.generateRandomNumber(contactJid)
     }
+    
+    if (this.history.includes(idRandom)) return
+     
+    if (this.method === 'flooding') {
+
+      for (let vecino in this.table) { 
+        let name = this.table[vecino].jid
+        
+        // if(name != from) {
+          try {
+            const messageStanza = xml(
+              'message',
+              { type: 'chat', to: name, dest: contactJid, id: idRandom },
+              xml('body', {}, message),
+            )
+            this.history.push(idRandom)
+            this.xmpp.send(messageStanza)
+          } catch (error) {
+            console.log('❌ Error al enviar mensaje', error)
+          }
+        // }
+      }
+      
+      
+
+    } else if (this.method === 'distanceVector') {
+
+      let shortestNode = this.graph.distanceVector(this.clientKey)
+      console.log("Distance vector paths", shortestNode)
+
+      let short = null
+      for (let vecino in this.table) { 
+
+        let name = vecino.jid
+        let weight = vecino.weight
+       
+        if(short === null) { 
+          short = {name, weight}
+        }else if(short.weight > weight) {
+          short = {name, weight}
+        }
+      }
+
+      try {
+        const messageStanza = xml(
+          'message',
+          { type: 'chat', to: short.name, dest: contactJid,  id: idRandom},
+          xml('body',  {}, message),
+        )
+        this.xmpp.send(messageStanza)
+      } catch (error) {
+        console.log('❌ Error al enviar mensaje', error)
+      }
+      
+
+    } else if (this.method === 'lsr') {
+
+    }
+
+    
   }
 
   // Funcion para mostrar el segundo menu de funciones
@@ -398,7 +478,7 @@ class Chat {
     console.log('7) Enviar/recibir archivos')
     console.log('8) Cerrar sesion')
     this.rl.question('\nElige una opción: ',async (answer) => {
-      await handleSecondMenuOption(answer)
+      await this.handleSecondMenuOption(answer)
     })
   }
 
@@ -419,7 +499,7 @@ class Chat {
           this.rl.question('Introduce el mensaje que deseas enviar: ', (message) => {
             const groupJid = `${groupName}@conference.${this.server}`
             const messageStanza = xml('message', { to: groupJid, type: 'groupchat' }, xml('body', {}, message))
-            xmpp.send(messageStanza)
+            this.xmpp.send(messageStanza)
             this.secondMenu()
           })
         })
@@ -434,7 +514,7 @@ class Chat {
                 xml('invite', { to: `${contactJid}@${this.server}` })
               )
             )
-            xmpp.send(inviteStanza)
+            this.xmpp.send(inviteStanza)
             console.log(`Invitación enviada a ${contactJid} para unirse al grupo ${groupName}`)
             this.secondMenu()
           })
@@ -455,12 +535,96 @@ class Chat {
     }
   }
 
+
+  // Funcion para manejar las opciones del menu de funciones
+  handleSecondMenuOption = async(option) => {
+    switch (option) {
+      case '1':
+        //Mostar todos los contactos y su estado
+        this.formatContacts()
+        this.secondMenu()
+        break
+      case '2':
+        // Agregar un usuario a los contactos
+        this.rl.question('Introduce el ID del usuario que deseas agregar: ',async (contactJid) => {
+          this.addContact(contactJid)
+          this.secondMenu()
+        })
+        break
+      case '3':
+        // Mostrar detalles de contacto de un usuario
+        this.rl.question('Introduce el JID del usuario del que deseas ver detalles: ', (contactJid) => {
+          const contact = contacts[contactJid + '@' + this.server]
+          if (contact) {
+            console.log(`Detalles de ${contactJid}: ${contact.show || 'disponible'} (${contact.status || 'sin estado'})`)
+          } else {
+            console.log('No se encontró el usuario o no está en tu lista de contactos.')
+          }
+          this.secondMenu()
+        })
+        break
+      case '4':
+        // Comunicación 1 a 1 con cualquier usuario/contacto
+        this.rl.question('Introduce el JID del usuario con el que deseas chatear: ', (contactJid) => {
+          this.rl.question('Introduce el mensaje que deseas enviar: ', (message) => {
+            this.sendMessages('', contactJid, message, 0)
+            this.secondMenu()
+          })
+        })
+        break
+      case '5':
+        // Participar en conversaciones grupales
+        console.log('1) Crear grupo')
+        console.log('2) Enviar mensaje a grupo')
+        console.log('3) Agregar usuario a grupo')
+        console.log('4) Unirse a un grupo público') // Nueva opción aquí
+        this.rl.question('\nElige una opción: ', (answer) => {
+          this.handleGroup(answer)
+        })
+        break
+        
+      case '6':
+        // Cambiar estado y show
+        for (const show in this.showIcon) {
+          console.log(`${show}: ${this.showIcon[show]}`)
+        }
+        this.rl.question('Introduce el show que deseas usar: ', (show) => {
+          this.rl.question('Introduce el mensaje de estado que deseas usar (opcional): ', (status) => {
+            this.cambiarEstadoUsuario(show, status)
+            this.secondMenu()
+          })
+        })
+        break
+      case '7':
+        // Enviar/recibir archivos
+        this.rl.question('Introduce el JID del usuario al que deseas enviar un archivo: ', (contactJid) => {
+          this.rl.question('Introduce la ruta del archivo que deseas enviar: ', async (filePath) => {
+            await this.leerArchivo(filePath,contactJid)
+            this.secondMenu()
+          })
+        })
+        break
+      case '8':
+        // Cerrar sesion
+        const end = await this.xmpp.send(xml('presence', {type: 'unavailable'}))
+        // const dobleend = cambiarEstadoUsuario(xmpp, 'unavailable', '')
+        const clean = await this.cleanContacts()
+        Promise.all([end,clean])
+        await this.xmpp.stop()
+        
+        break
+      default:
+        console.log('❌ Opción no válida. Por favor, elige una opción válida.')
+        this.secondMenu()
+    }
+  }
+
   async login(jid, password) {
 
     this.crearTablaEnrutamiento(`${jid}@${this.server}`)
 
     // Nos conectamos al servidor
-    const xmpp = client({
+    this.xmpp = client({
       service: `xmpp://${this.server}:5222`,
       domain: this.server,
       username: jid, 
@@ -470,91 +634,8 @@ class Chat {
 
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
    
-    
-    // Funcion para manejar las opciones del menu de funciones
-    const handleSecondMenuOption = async(option) => {
-      switch (option) {
-        case '1':
-          //Mostar todos los contactos y su estado
-          this.formatContacts()
-          this.secondMenu()
-          break
-        case '2':
-          // Agregar un usuario a los contactos
-          this.rl.question('Introduce el ID del usuario que deseas agregar: ',async (contactJid) => {
-            this.addContact(xmpp, contactJid)
-            this.secondMenu()
-          })
-          break
-        case '3':
-          // Mostrar detalles de contacto de un usuario
-          this.rl.question('Introduce el JID del usuario del que deseas ver detalles: ', (contactJid) => {
-            const contact = contacts[contactJid + '@' + this.server]
-            if (contact) {
-              console.log(`Detalles de ${contactJid}: ${contact.show || 'disponible'} (${contact.status || 'sin estado'})`)
-            } else {
-              console.log('No se encontró el usuario o no está en tu lista de contactos.')
-            }
-            this.secondMenu()
-          })
-          break
-        case '4':
-          // Comunicación 1 a 1 con cualquier usuario/contacto
-          this.rl.question('Introduce el JID del usuario con el que deseas chatear: ', (contactJid) => {
-            this.rl.question('Introduce el mensaje que deseas enviar: ', (message) => {
-              this.sendMessages(xmpp, contactJid, message)
-              this.secondMenu()
-            })
-          })
-          break
-        case '5':
-          // Participar en conversaciones grupales
-          console.log('1) Crear grupo')
-          console.log('2) Enviar mensaje a grupo')
-          console.log('3) Agregar usuario a grupo')
-          console.log('4) Unirse a un grupo público') // Nueva opción aquí
-          this.rl.question('\nElige una opción: ', (answer) => {
-            this.handleGroup(answer)
-          })
-          break
-          
-        case '6':
-          // Cambiar estado y show
-          for (const show in this.showIcon) {
-            console.log(`${show}: ${this.showIcon[show]}`)
-          }
-          this.rl.question('Introduce el show que deseas usar: ', (show) => {
-            this.rl.question('Introduce el mensaje de estado que deseas usar (opcional): ', (status) => {
-              this.cambiarEstadoUsuario(xmpp, show, status)
-              this.secondMenu()
-            })
-          })
-          break
-        case '7':
-          // Enviar/recibir archivos
-          this.rl.question('Introduce el JID del usuario al que deseas enviar un archivo: ', (contactJid) => {
-            this.rl.question('Introduce la ruta del archivo que deseas enviar: ', async (filePath) => {
-              await this.leerArchivo(xmpp,filePath,contactJid)
-              this.secondMenu()
-            })
-          })
-          break
-        case '8':
-          // Cerrar sesion
-          const end = await xmpp.send(xml('presence', {type: 'unavailable'}))
-          // const dobleend = cambiarEstadoUsuario(xmpp, 'unavailable', '')
-          const clean = await this.cleanContacts()
-          Promise.all([end,clean])
-          await xmpp.stop()
-          
-          break
-        default:
-          console.log('❌ Opción no válida. Por favor, elige una opción válida.')
-          this.secondMenu()
-      }
-    }
 
-    xmpp.on('stanza', async (stanza) => {
+    this.xmpp.on('stanza', async (stanza) => {
       if (stanza.is('message')) {
         
         // Manejar invitaciones a salas de grupo
@@ -566,38 +647,53 @@ class Chat {
         
           const presenceStanza = xml(
             'presence',
-            { to: roomJid + '/' + xmpp.jid.local },
+            { to: roomJid + '/' + this.xmpp.jid.local },
             xml('x', { xmlns: 'http://jabber.org/protocol/muc' })
           )
-          xmpp.send(presenceStanza)
+          this.xmpp.send(presenceStanza)
           console.log(`👯 Te has unido a la sala ${roomJid}`)
         }
+
         // Manejar mensajes 1 a 1
         else if (stanza.is('message') && stanza.attrs.type === 'chat' && stanza.getChild('body')) {
           const from = stanza.attrs.from
+          const dest = stanza.attrs.dest
+          const idRandom = stanza.attrs.idRandom
           const message = stanza.getChildText('body')
 
-          // Verificar si es un archivo
-          const isFile = message.includes('file://') 
-          if (isFile) {
-            const fileData = message.split('//')[2]
-            const extension = message.split('//')[1].split(':')[0]
-            const decodedFileData = Buffer.from(fileData, 'base64')
-            const fileName = `${from.split('@')[0]}-${Date.now()}.${extension}`
-            const directoryPath = path.join(__dirname, './recibidos');
+          // Este nodo es el destino final
+          const destino = `${dest.split("@")[0]}@${dest.split("@")[1]}`
+          if(destino === this.clientJID) {
+              // Verificar si es un archivo
+              const isFile = message.includes('file://') 
+              if (isFile) {
+                const fileData = message.split('//')[2]
+                const extension = message.split('//')[1].split(':')[0]
+                const decodedFileData = Buffer.from(fileData, 'base64')
+                const fileName = `${from.split('@')[0]}-${Date.now()}.${extension}`
+                const directoryPath = path.join(__dirname, './recibidos');
 
-            // Crear el directorio si no existe
-            if (!fs.existsSync(directoryPath)) {
-              fs.mkdirSync(directoryPath, { recursive: true });
-            }
+                // Crear el directorio si no existe
+                if (!fs.existsSync(directoryPath)) {
+                  fs.mkdirSync(directoryPath, { recursive: true });
+                }
 
-            //guardarlo en ./recibidos
-            fs.writeFileSync(path.join(__dirname,`./recibidos/${fileName}`), decodedFileData)
-            console.log(`📃 Nuevo archivo de ${from}: ${fileName}`)
-          }else{
+                //guardarlo en ./recibidos
+                fs.writeFileSync(path.join(__dirname,`./recibidos/${fileName}`), decodedFileData)
+                console.log(`📃 Nuevo archivo de ${from}: ${fileName}`)
+              }else{
+                console.log(`📥 Nuevo mensaje de ${from}: ${message}`)
+              }
+          }else {
+            // Continuar con el reenvio a vecinos
+            this.sendMessages(from, `${dest}@${this.server}`, message, idRandom)
 
-            console.log(`📥 Nuevo mensaje de ${from}: ${message}`)
           }
+
+          
+
+
+
         } 
         // Manejar mensajes de grupo
         else if (stanza.is('message') && stanza.attrs.type === 'groupchat') {
@@ -612,9 +708,9 @@ class Chat {
       }
       }
       // Manejo del loggin
-      else if (stanza.is('presence') && stanza.attrs.from === xmpp.jid.toString() && stanza.attrs.type !== 'unavailable') {
+      else if (stanza.is('presence') && stanza.attrs.from === this.xmpp.jid.toString() && stanza.attrs.type !== 'unavailable') {
         // Obtener el roster del usuario
-        this.getRoster(xmpp,jid)
+        this.getRoster(jid)
         console.log('🗸', 'Successfully logged in')
         this.secondMenu()
       }
@@ -623,7 +719,7 @@ class Chat {
         // Si es una presencia de un usuario agregar al roster
         if (stanza.attrs.type === 'subscribe'){
           console.log(`🤗 Solicitud de suscripcion de ${stanza.attrs.from}`)
-          xmpp.send(xml('presence', { to: stanza.attrs.from, type: 'subscribed' }))
+          this.xmpp.send(xml('presence', { to: stanza.attrs.from, type: 'subscribed' }))
           console.log(`🤗 Has aceptado la solicitud de ${stanza.attrs.from}`)
           this.contacts[stanza.attrs.from] = {status: '', show: '🟢Available'}
         }
@@ -633,7 +729,7 @@ class Chat {
         }
         else if(!stanza.attrs.type){
           const contactJid = stanza.attrs.from.split('/')[0]
-          if (contactJid !== xmpp.jid.bare().toString()) {  // Comprueba si el JID del contacto es diferente al tuyo
+          if (contactJid !== this.xmpp.jid.bare().toString()) {  // Comprueba si el JID del contacto es diferente al tuyo
             console.log(`El usuario ${contactJid} ha cambiado su estado`)
             const status = stanza.getChild('status')?.getText()
             const show = stanza.getChild('show')?.getText()
@@ -652,7 +748,7 @@ class Chat {
         }
         else if (stanza.attrs.type === 'unavailable'){
           const contactJid = stanza.attrs.from.split('/')[0]
-          if (contactJid !== xmpp.jid.bare().toString()) {  // Comprueba si el JID del contacto es diferente al tuyo
+          if (contactJid !== this.xmpp.jid.bare().toString()) {  // Comprueba si el JID del contacto es diferente al tuyo
             console.log(`El usuario ${contactJid} se ha desconectado`)
             const status = 'unavailable'
             const show = '⚪Offline'
@@ -671,7 +767,7 @@ class Chat {
             const status = ""
             const show = "🟢Available"
             console.log(`${contactJid} se ha unido al grupo ${groupJid}`)
-            if (contactJid !== xmpp.jid.bare().toString() && !(contactJid in this.contacts)) { 
+            if (contactJid !== this.xmpp.jid.bare().toString() && !(contactJid in this.contacts)) { 
               this.contacts[contactJid] = {status, show}
             }
             if (!(contactJid in local)){
@@ -696,7 +792,7 @@ class Chat {
           const contactJid = item.attrs.jid
           const status = ""
           const show = "⚪Offline"
-          if (contactJid !== xmpp.jid.bare().toString() && !(contactJid in this.contacts)) { 
+          if (contactJid !== this.xmpp.jid.bare().toString() && !(contactJid in this.contacts)) { 
             this.contacts[contactJid] = {status, show}
           }
         })
@@ -708,13 +804,21 @@ class Chat {
     })
 
     // Manejo de eventos
-    xmpp.on('online', async (address) => {
+    this.xmpp.on('online', async (address) => {
       console.log('▶', 'online as', address.toString())
-      await xmpp.send(xml('presence'))
+      await this.xmpp.send(xml('presence'))
+      
+      // Enviar las solicitudes de amistad de mis nodos
+
+      for (let el in this.table) {
+        this.addContact(this.table[el].jid.split("@")[0])
+      }
     })
 
+   
+
     // Si el servidor nos envia un error
-    xmpp.on('error',async (err) => {
+    this.xmpp.on('error',async (err) => {
 
       if (err.condition === 'not-authorized') {
         console.error('❌ Autenticación fallida. Verifica tu ID de cuenta y contraseña.')
@@ -725,13 +829,13 @@ class Chat {
     })
 
     // Si nos desconectamos
-    xmpp.on('offline', () => {
+    this.xmpp.on('offline', () => {
       console.log('⏹', 'offline')
       this.menu()
     })
 
     // Nos conectamos al servidor
-    xmpp.start().catch(() =>{})
+    this.xmpp.start().catch(() =>{})
 
   }
 
@@ -739,7 +843,7 @@ class Chat {
   async deleteAccount(jid, password) {
 
     // Nos conectamos al servidor 
-    const xmpp = client({
+    this.xmpp = client({
       service: `xmpp://${this.server}:5222`,
       domain: this.server,
       username: jid, 
@@ -750,7 +854,7 @@ class Chat {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
     
-    xmpp.on('stanza', async (stanza) => {
+    this.xmpp.on('stanza', async (stanza) => {
       // si nos llega la estanza del result es que se ha eliminado la cuenta
       if (stanza.is('iq') && stanza.attrs.type === 'result') {
         console.log('🗸', 'Successfully deleted account')
@@ -758,7 +862,7 @@ class Chat {
       }
     })
 
-    xmpp.on('error', (err) => {
+    this.xmpp.on('error', (err) => {
       // console.error('❌', err.toString())
       if (err.condition === 'not-authorized') {
         console.error('❌ Autenticación fallida. Verifica tu ID de cuenta y contraseña.')
@@ -766,8 +870,8 @@ class Chat {
       this.menu()
     })
 
-    xmpp.on('online', async () => {
-      console.log('▶', 'online as', xmpp.jid.toString(), '\n')
+    this.xmpp.on('online', async () => {
+      console.log('▶', 'online as', this.xmpp.jid.toString(), '\n')
       // creamos la estanza para eliminar la cuenta
       const deleteStanza = xml(
         'iq',
@@ -776,18 +880,18 @@ class Chat {
       )
       try{
 
-        await xmpp.send(deleteStanza)
+        await this.xmpp.send(deleteStanza)
       }
       catch(err){
         console.log(err)
       }finally{
         
-        await xmpp.stop()
+        await this.xmpp.stop()
       }
     })
     // Nos desconectamos y volvemos al menu 
-    xmpp.on('offline', () => {
-      xmpp.stop()
+    this.xmpp.on('offline', () => {
+      this.xmpp.stop()
       console.log('⏹', 'Desconectandote del Servidor...')
 
       this.menu()
@@ -795,7 +899,7 @@ class Chat {
 
     })
 
-    xmpp.start().catch(() => {})
+    this.xmpp.start().catch(() => {})
   }
 
 
