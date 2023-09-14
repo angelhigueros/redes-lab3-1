@@ -456,6 +456,36 @@ class Chat {
 
     } else if (this.method === 'lsr') {
 
+      let results = graph.linkStateRouting(this.clientKey);
+
+      console.log('Distances:', results.distances);
+      console.log('Previous nodes:', results.previousNodes);
+
+      let short = null
+      for (let vecino in this.table) { 
+
+        let name = vecino.jid
+        let weight = vecino.weight
+       
+        if(short === null) { 
+          short = {name, weight}
+        }else if(short.weight > weight) {
+          short = {name, weight}
+        }
+      }
+
+      try {
+        const messageStanza = xml(
+          'message',
+          { type: 'chat', to: short.name, dest: contactJid,  id: idRandom},
+          xml('body',  {}, message),
+        )
+        this.xmpp.send(messageStanza)
+      } catch (error) {
+        console.log('❌ Error al enviar mensaje', error)
+      }
+      
+
     }
 
     
