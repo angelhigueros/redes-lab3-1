@@ -24,7 +24,7 @@ class Chat {
 
 
     // flooding, distanceVector or lsr
-    this.method = 'flooding'
+    this.method = 'lsr'
 
 
     // Iconos para los shows de los Usuarios
