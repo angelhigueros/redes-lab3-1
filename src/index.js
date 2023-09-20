@@ -400,93 +400,99 @@ class Chat {
       idRandom = this.generateRandomNumber(contactJid)
     }
     
-    if (this.history.includes(idRandom)) return
+    const messageStanza = xml(
+      'message',
+      { type: 'chat', to: contactJid, dest: contactJid, id: idRandom },
+      xml('body', {}, message),
+    )
+
+    // if (this.history.includes(idRandom)) return
      
-    if (this.method === 'flooding') {
+    // if (this.method === 'flooding') {
 
-      for (let vecino in this.table) { 
-        let name = this.table[vecino].jid
+    //   for (let vecino in this.table) { 
+    //     let name = this.table[vecino].jid
         
-        // if(name != from) {
-          try {
-            const messageStanza = xml(
-              'message',
-              { type: 'chat', to: name, dest: contactJid, id: idRandom },
-              xml('body', {}, message),
-            )
-            this.history.push(idRandom)
-            this.xmpp.send(messageStanza)
-          } catch (error) {
-            console.log('❌ Error al enviar mensaje', error)
-          }
-        // }
-      }
+    //     // if(name != from) {
+    //       try {
+    //         const messageStanza = xml(
+    //           'message',
+    //           { type: 'chat', to: name, dest: contactJid, id: idRandom },
+    //           xml('body', {}, message),
+    //         )
+    //         this.history.push(idRandom)
+    //         this.xmpp.send(messageStanza)
+    //       } catch (error) {
+    //         console.log('❌ Error al enviar mensaje', error)
+    //       }
+    //     // }
+    //   }
       
       
 
-    } else if (this.method === 'distanceVector') {
+    // } else if (this.method === 'distanceVector') {
 
-      let shortestNode = this.graph.distanceVector(this.clientKey)
-      console.log("Distance vector paths", shortestNode)
+    //   let shortestNode = this.graph.distanceVector(this.clientKey)
+    //   console.log("Distance vector paths", shortestNode)
 
-      let short = null
-      for (let vecino in this.table) { 
+    //   let short = null
+    //   for (let vecino in this.table) { 
 
-        let name = vecino.jid
-        let weight = vecino.weight
+    //     let name = vecino.jid
+    //     let weight = vecino.weight
        
-        if(short === null) { 
-          short = {name, weight}
-        }else if(short.weight > weight) {
-          short = {name, weight}
-        }
-      }
+    //     if(short === null) { 
+    //       short = {name, weight}
+    //     }else if(short.weight > weight) {
+    //       short = {name, weight}
+    //     }
+    //   }
 
-      try {
-        const messageStanza = xml(
-          'message',
-          { type: 'chat', to: short.name, dest: contactJid,  id: idRandom},
-          xml('body',  {}, message),
-        )
-        this.xmpp.send(messageStanza)
-      } catch (error) {
-        console.log('❌ Error al enviar mensaje', error)
-      }
+    //   try {
+    //     const messageStanza = xml(
+    //       'message',
+    //       { type: 'chat', to: short.name, dest: contactJid,  id: idRandom},
+    //       xml('body',  {}, message),
+    //     )
+    //     this.xmpp.send(messageStanza)
+    //   } catch (error) {
+    //     console.log('❌ Error al enviar mensaje', error)
+    //   }
       
 
-    } else if (this.method === 'lsr') {
+    // } else if (this.method === 'lsr') {
 
-      let results = graph.linkStateRouting(this.clientKey);
+    //   let results = graph.linkStateRouting(this.clientKey);
 
-      console.log('Distances:', results.distances);
-      console.log('Previous nodes:', results.previousNodes);
+    //   console.log('Distances:', results.distances);
+    //   console.log('Previous nodes:', results.previousNodes);
 
-      let short = null
-      for (let vecino in this.table) { 
+    //   let short = null
+    //   for (let vecino in this.table) { 
 
-        let name = vecino.jid
-        let weight = vecino.weight
+    //     let name = vecino.jid
+    //     let weight = vecino.weight
        
-        if(short === null) { 
-          short = {name, weight}
-        }else if(short.weight > weight) {
-          short = {name, weight}
-        }
-      }
+    //     if(short === null) { 
+    //       short = {name, weight}
+    //     }else if(short.weight > weight) {
+    //       short = {name, weight}
+    //     }
+    //   }
 
-      try {
-        const messageStanza = xml(
-          'message',
-          { type: 'chat', to: short.name, dest: contactJid,  id: idRandom},
-          xml('body',  {}, message),
-        )
-        this.xmpp.send(messageStanza)
-      } catch (error) {
-        console.log('❌ Error al enviar mensaje', error)
-      }
+    //   try {
+    //     const messageStanza = xml(
+    //       'message',
+    //       { type: 'chat', to: short.name, dest: contactJid,  id: idRandom},
+    //       xml('body',  {}, message),
+    //     )
+    //     this.xmpp.send(messageStanza)
+    //   } catch (error) {
+    //     console.log('❌ Error al enviar mensaje', error)
+    //   }
       
 
-    }
+    // }
 
     
   }
@@ -692,8 +698,8 @@ class Chat {
           const message = stanza.getChildText('body')
 
           // Este nodo es el destino final
-          const destino = `${dest.split("@")[0]}@${dest.split("@")[1]}`
-          if(destino === this.clientJID) {
+          // const destino = `${dest.split("@")[0]}@${dest.split("@")[1]}`
+          // if(destino === this.clientJID) {
               // Verificar si es un archivo
               const isFile = message.includes('file://') 
               if (isFile) {
@@ -714,11 +720,11 @@ class Chat {
               }else{
                 console.log(`📥 Nuevo mensaje de ${from}: ${message}`)
               }
-          }else {
-            // Continuar con el reenvio a vecinos
-            this.sendMessages(from, `${dest}@${this.server}`, message, idRandom)
+          // }else {
+          //   // Continuar con el reenvio a vecinos
+          //   this.sendMessages(from, `${dest}@${this.server}`, message, idRandom)
 
-          }
+          // }
 
           
 
