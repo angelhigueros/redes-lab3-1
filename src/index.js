@@ -11,7 +11,6 @@ class Chat {
   constructor() {
     this.graph = null
     this.table = {}
-
     this.contacts = {}
     this.groupRoster = {}
     this.registerState = { successfulRegistration: false } 
@@ -24,7 +23,7 @@ class Chat {
 
 
     // flooding, distanceVector or lsr
-    this.method = 'lsr'
+    this.method = 'flooding'
 
 
     // Iconos para los shows de los Usuarios
@@ -44,7 +43,6 @@ class Chat {
     this.xml = null
 
   }
-
 
   // HELPERS
   findKeyByValue(obj, value) {
