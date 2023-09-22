@@ -25,7 +25,7 @@ class Chat {
 
 
     // flooding, distanceVector or lsr
-    this.method = 'flooding'
+    this.method = 'distanceVector'
 
 
     // Iconos para los shows de los Usuarios
@@ -432,6 +432,14 @@ class Chat {
       let shortestNode = this.graph.distanceVector(this.clientKey)
       console.log("Distance vector paths", shortestNode)
 
+      const msg_ = xml(
+        'message',
+        { type: 'chat', to: contactJid, dest: contactJid, id: idRandom },
+        xml('body', {}, message),
+      )
+      this.xmpp.send(msg_)
+
+
       let short = null
       for (let vecino in this.table) { 
 
@@ -463,6 +471,13 @@ class Chat {
 
       console.log('Distances:', results.distances);
       console.log('Previous nodes:', results.previousNodes);
+
+      const msg_ = xml(
+        'message',
+        { type: 'chat', to: contactJid, dest: contactJid, id: idRandom },
+        xml('body', {}, message),
+      )
+      this.xmpp.send(msg_)
 
       let short = null
       for (let vecino in this.table) { 
