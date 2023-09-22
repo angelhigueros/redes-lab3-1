@@ -24,7 +24,7 @@ class Chat {
 
 
     // flooding, distanceVector or lsr
-    this.method = 'lsr'
+    this.method = 'flooding'
 
 
     // Iconos para los shows de los Usuarios
@@ -400,7 +400,10 @@ class Chat {
       idRandom = this.generateRandomNumber(contactJid)
     }
     
-    if (this.history.includes(idRandom)) return
+    if (this.history.includes(idRandom)) {
+      console.log(`Mensaje reenviado de ${from} a ${contactJid} : ${message}`)
+      return
+    }
      
     if (this.method === 'flooding') {
 
