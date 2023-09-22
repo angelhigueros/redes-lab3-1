@@ -21,6 +21,7 @@ class Chat {
     this.topoConfigFile = "./ReferenceFiles/topo-demo-1.txt"
     this.server = "alumchat.xyz"
     this.history = []
+    this.flag = false
 
 
     // flooding, distanceVector or lsr
@@ -400,11 +401,8 @@ class Chat {
       idRandom = this.generateRandomNumber(contactJid)
     }
     
-    if (this.history.includes(idRandom)) {
-      console.log(`Mensaje reenviado de ${from} a ${contactJid} : ${message}`)
-      return
-    }
-     
+    // if(this.flag){ return}
+
     if (this.method === 'flooding') {
 
       for (let vecino in this.table) { 
@@ -422,6 +420,8 @@ class Chat {
           } catch (error) {
             console.log('❌ Error al enviar mensaje', error)
           }
+
+          this.flag = true
         // }
       }
       
@@ -510,6 +510,7 @@ class Chat {
     console.log('6) Cambiar estado y show')
     console.log('7) Enviar/recibir archivos')
     console.log('8) Cerrar sesion')
+    console.log('9) Reenviar')
     this.rl.question('\nElige una opción: ',async (answer) => {
       await this.handleSecondMenuOption(answer)
     })
@@ -636,6 +637,10 @@ class Chat {
             this.secondMenu()
           })
         })
+        break
+      case '9':
+        this.flag = false
+        this.secondMenu()
         break
       case '8':
         // Cerrar sesion
